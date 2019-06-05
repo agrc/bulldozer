@@ -1,34 +1,41 @@
 #!/usr/bin/env python
 # * coding: utf8 *
 '''
-main.py
-A module that writes arcgis server logs to a csv with frequencies
+bulldozer. A module that writes arcgis server logs to a csv with frequencies
+
+Usage:
+  bulldozer ship <machine>
+  bulldozer -h | --help
+  bulldozer --version
+
+Options:
+  <machine>     The ArcGIS Server machine key
+  -h --help     Show this screen.
+  --version     Show version.
 '''
 
 import csv
 import getpass
 import os
-import sys
 from collections import namedtuple
 
 import requests
 import urllib3
 
+from docopt import docopt
+from servers import SERVER_TOKENS
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 HEADERS = {'Content-type': 'application/x-www-form-urlencoded', 'Accept': 'text/plain'}
-SERVER_TOKENS = {
-    'key': 'https://url:6443/arcgis/',
-}
 LOGS = {}
 Message = namedtuple('Message', ['severity', 'source', 'code', 'message', 'methodname'])
 
 
-def main():
+def ship(server_name_token):
     '''the main entry point for gathering the logs, summarizing them, and removing them
     '''
     username = input('Enter user name: ')
     password = getpass.getpass('Enter password: ')
-    server_name_token = input('Enter short machine name (eg. `key`): ')
 
     token = get_token(username, password, SERVER_TOKENS[server_name_token])
     if not token:
@@ -171,4 +178,7 @@ def clean_message(string):
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    ARGS = docopt(__doc__)
+
+    if ARGS['ship'] and ARGS['<machine>']:
+        ship(ARGS['<machine>'])
