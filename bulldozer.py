@@ -54,6 +54,11 @@ def ship(server_name_token):
 
     logs, more = get_log_messages(log_url, options)
 
+    if logs is None and more is None:
+        print('Could not get logs. Exiting')
+
+        return
+
     if logs:
         prune(logs)
 
@@ -72,16 +77,23 @@ def ship(server_name_token):
 def get_token(username, password, server):
     '''Makes a request to the token service and stores the token information
     '''
+    response_data = {}
     data = {'username': username, 'password': password, 'client': 'requestip', 'expiration': 60, 'f': 'json'}
 
-    response = requests.post('{}admin/generateToken'.format(server), data=data, verify=False)
-    response.raise_for_status()
+    try:
+        response = requests.post('{}admin/generateToken'.format(server), data=data, verify=False)
+        response.raise_for_status()
 
-    response_data = response.json()
+        response_data = response.json()
+    except requests.exceptions.RequestException:
+        print('Unable to reach the server. Is it available?')
+        return None
+
     status, message = return_false_for_status(response_data)
 
     if not status:
         print(message)
+        return None
 
     return response_data['token']
 
@@ -89,10 +101,17 @@ def get_token(username, password, server):
 def get_log_messages(url, data):
     '''Makes a reqeust to the log service and returns the data along with the time to set for the next start time if there are more results
     '''
-    response = requests.post(url, data=data, headers=HEADERS, verify=False)
-    response.raise_for_status()
+    data = {}
 
-    data = response.json()
+    try:
+        response = requests.post(url, data=data, headers=HEADERS, verify=False)
+        response.raise_for_status()
+
+        data = response.json()
+    except requests.exceptions.RequestException:
+        print('Unable to reach the server. Is it available?')
+
+        return None, None
 
     status, message = return_false_for_status(data)
     if not status:
@@ -115,10 +134,15 @@ def clean_logs(url, token):
     '''deletes the logs for the given url and token
     '''
     data = {'token': token, 'f': 'json'}
-    response = requests.post(url, data=data, headers=HEADERS, verify=False)
-    response.raise_for_status()
+    try
+        response = requests.post(url, data=data, headers=HEADERS, verify=False)
+        response.raise_for_status()
 
-    data = response.json()
+        data = response.json()
+    except requests.exceptions.RequestException:
+        print('Unable to reach the server. Is it available?')
+
+        return
 
     status, message = return_false_for_status(data)
     if not status:
