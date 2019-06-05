@@ -4,13 +4,14 @@
 bulldozer. A module that writes arcgis server logs to a csv with frequencies
 
 Usage:
-  bulldozer ship <machine> [--clean]
+  bulldozer ship <machine> [--clean --email]
   bulldozer -h | --help
   bulldozer --version
 
 Options:
   <machine>     The ArcGIS Server machine key
   --clean       Delete the logs that have been read
+  --email       Email the log results
   -h --help     Show this screen.
   --version     Show version.
 '''
@@ -23,6 +24,7 @@ import requests
 import urllib3
 
 from docopt import docopt
+from messaging import send_email
 from servers import SERVER_TOKENS
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -31,7 +33,7 @@ LOGS = {}
 Message = namedtuple('Message', ['severity', 'source', 'code', 'message', 'methodname'])
 
 
-def ship(server_name_token, remove_logs):
+def ship(server_name_token, remove_logs, send_mail):
     '''the main entry point for gathering the logs, summarizing them, and removing them
     '''
 
@@ -74,6 +76,10 @@ def ship(server_name_token, remove_logs):
         prune(logs)
 
     write_logs(log_filename, LOGS)
+
+    if send_mail:
+        print('sending email')
+        send_email('{} ArcGIS Server logs'.format(server_name_token), '', log_filename)
 
     if remove_logs:
         clean_logs(clean_url, token)
@@ -211,4 +217,4 @@ if __name__ == '__main__':
     ARGS = docopt(__doc__)
 
     if ARGS['ship'] and ARGS['<machine>']:
-        ship(ARGS['<machine>'], ARGS['--clean'])
+        ship(ARGS['<machine>'], ARGS['--clean'], ARGS['--email'])
