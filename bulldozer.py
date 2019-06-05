@@ -15,7 +15,6 @@ Options:
 '''
 
 import csv
-import getpass
 import os
 from collections import namedtuple
 
@@ -34,18 +33,23 @@ Message = namedtuple('Message', ['severity', 'source', 'code', 'message', 'metho
 def ship(server_name_token):
     '''the main entry point for gathering the logs, summarizing them, and removing them
     '''
-    username = input('Enter user name: ')
-    password = getpass.getpass('Enter password: ')
 
-    token = get_token(username, password, SERVER_TOKENS[server_name_token])
+    if server_name_token not in SERVER_TOKENS:
+        print('Machine token not found in servers.py. Did you add it?')
+
+        return
+
+    url, username, password = SERVER_TOKENS[server_name_token].values()
+
+    token = get_token(username, password, url)
     if not token:
         print('Could not generate a token with the username and password provided.')
 
         return
 
     # Construct URL to query the logs
-    log_url = '{}admin/logs/query'.format(SERVER_TOKENS[server_name_token])
-    clean_url = '{}admin/logs/clean'.format(SERVER_TOKENS[server_name_token])
+    log_url = '{}admin/logs/query'.format(url)
+    clean_url = '{}admin/logs/clean'.format(url)
     log_filename = os.path.join(os.path.abspath(os.path.dirname(__file__)), '{}.csv'.format(server_name_token))
 
     options = {'filter': '{}', 'token': token, 'pageSize': 10000, 'level': 'WARNING', 'f': 'json'}
@@ -101,8 +105,6 @@ def get_token(username, password, server):
 def get_log_messages(url, data):
     '''Makes a reqeust to the log service and returns the data along with the time to set for the next start time if there are more results
     '''
-    data = {}
-
     try:
         response = requests.post(url, data=data, headers=HEADERS, verify=False)
         response.raise_for_status()
@@ -134,7 +136,8 @@ def clean_logs(url, token):
     '''deletes the logs for the given url and token
     '''
     data = {'token': token, 'f': 'json'}
-    try
+
+    try:
         response = requests.post(url, data=data, headers=HEADERS, verify=False)
         response.raise_for_status()
 
