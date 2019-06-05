@@ -4,12 +4,13 @@
 bulldozer. A module that writes arcgis server logs to a csv with frequencies
 
 Usage:
-  bulldozer ship <machine>
+  bulldozer ship <machine> [--clean]
   bulldozer -h | --help
   bulldozer --version
 
 Options:
   <machine>     The ArcGIS Server machine key
+  --clean       Delete the logs that have been read
   -h --help     Show this screen.
   --version     Show version.
 '''
@@ -30,7 +31,7 @@ LOGS = {}
 Message = namedtuple('Message', ['severity', 'source', 'code', 'message', 'methodname'])
 
 
-def ship(server_name_token):
+def ship(server_name_token, remove_logs):
     '''the main entry point for gathering the logs, summarizing them, and removing them
     '''
 
@@ -73,7 +74,9 @@ def ship(server_name_token):
         prune(logs)
 
     write_logs(log_filename, LOGS)
-    clean_logs(clean_url, token)
+
+    if remove_logs:
+        clean_logs(clean_url, token)
 
     print('done')
 
@@ -208,4 +211,4 @@ if __name__ == '__main__':
     ARGS = docopt(__doc__)
 
     if ARGS['ship'] and ARGS['<machine>']:
-        ship(ARGS['<machine>'])
+        ship(ARGS['<machine>'], ARGS['--clean'])
