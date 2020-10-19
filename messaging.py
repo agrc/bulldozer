@@ -46,7 +46,7 @@ def send_email(subject, body, attachment=''):
     message['Date'] = formatdate(localtime=True)
 
     if isfile(attachment):
-        with (open(attachment, 'r')) as log_file:
+        with (open(attachment, 'r', encoding='utf-8')) as log_file:
             log_file_attachment = MIMEText(log_file.read(), 'csv')
 
         log_file_attachment.add_header('Content-Disposition', 'attachment; filename="{}"'.format(basename(attachment)))

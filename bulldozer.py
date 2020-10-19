@@ -185,7 +185,7 @@ def write_logs(to_file, logs):
     print('writing to ' + to_file)
 
     frequencies = sorted(logs.items(), key=lambda kvp: kvp[1], reverse=True)
-    with open(to_file, 'w', newline='') as outfile:
+    with open(to_file, 'w', encoding='utf-8', newline='') as outfile:
         log_writer = csv.writer(outfile)
         log_writer.writerow(['severity', 'source', 'code', 'message', 'method name', 'frequency'])
 
