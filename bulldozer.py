@@ -124,7 +124,7 @@ def get_log_messages(url, data):
 
     status, message = return_false_for_status(data)
     if not status:
-        print('Error returned by operation. ' + message)
+        print('Error returned by operation. ', message)
 
         return None, None
 
@@ -156,7 +156,7 @@ def clean_logs(url, token):
 
     status, message = return_false_for_status(data)
     if not status:
-        print('Error cleaning logs. ' + message)
+        print('Error cleaning logs. ', message)
 
     print('logs cleared')
 
