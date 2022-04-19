@@ -21,8 +21,10 @@ import os
 from collections import namedtuple
 
 import requests
-
 from docopt import docopt
+from supervisor.message_handlers import SendGridHandler
+from supervisor.models import MessageDetails, Supervisor
+
 from messaging import send_email
 from servers import SERVER_TOKENS
 
@@ -188,7 +190,9 @@ def write_logs(to_file, logs):
         log_writer.writerow(['severity', 'source', 'code', 'message', 'method name', 'frequency'])
 
         for message, frequency in frequencies:
-            log_writer.writerow([message.severity, message.source, message.code, message.message, message.methodname, frequency])
+            log_writer.writerow([
+                message.severity, message.source, message.code, message.message, message.methodname, frequency
+            ])
 
 
 def return_false_for_status(json_response):
