@@ -2,5 +2,9 @@
   "python.pythonPath": ".env/bin/python3",
   "python.linting.pylintEnabled": true,
   "python.linting.enabled": true,
-  "python.formatting.provider": "yapf"
+  "python.formatting.provider": "yapf",
+  "cSpell.words": [
+    "arcgis",
+    "requestip"
+  ]
 }
