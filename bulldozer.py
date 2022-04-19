@@ -21,13 +21,11 @@ import os
 from collections import namedtuple
 
 import requests
-import urllib3
 
 from docopt import docopt
 from messaging import send_email
 from servers import SERVER_TOKENS
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 HEADERS = {'Content-type': 'application/x-www-form-urlencoded', 'Accept': 'text/plain'}
 LOGS = {}
 Message = namedtuple('Message', ['severity', 'source', 'code', 'message', 'methodname'])
