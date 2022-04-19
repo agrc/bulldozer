@@ -110,7 +110,7 @@ def get_token(username, password, server):
 
 
 def get_log_messages(url, data):
-    '''Makes a reqeust to the log service and returns the data along with the time to set for the next start time if there are more results
+    '''Makes a request to the log service and returns the data along with the time to set for the next start time if there are more results
     '''
     try:
         response = requests.post(url, data=data, headers=HEADERS, verify=False)
@@ -192,8 +192,8 @@ def write_logs(to_file, logs):
 
 
 def return_false_for_status(json_response):
-    '''json_reponse: string - a json payload from a server
-    looks for a status in the json reponse and makes sure it does not contain an error
+    '''json_response: string - a json payload from a server
+    looks for a status in the json response and makes sure it does not contain an error
     Returns a tuple with a boolean status and a message
     '''
     if 'status' in list(json_response.keys()) and json_response['status'] == 'error':
