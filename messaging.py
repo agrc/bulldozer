@@ -26,7 +26,7 @@ def send_email(subject, body, attachment=''):
     Send an email.
     '''
     from_address = EMAIL_DATA['from']
-    api_key = EMAIL_DATA['apiKey']
+    api_key = EMAIL_DATA['api_key']
     to_addresses = EMAIL_DATA['to']
 
     if None in [to_addresses, from_address, api_key]:
@@ -63,7 +63,7 @@ def _send_email_with_sendgrid(from_address, api_key, to_address, subject, body, 
         content = b64encode(path.read_bytes()).decode()
 
         message.attachment = Attachment(
-            FileContent(content), FileName(f'{path.name}.csv'), FileType('text/csv'), Disposition('attachment')
+            FileContent(content), FileName(path.name), FileType('text/csv'), Disposition('attachment')
         )
 
     try:
