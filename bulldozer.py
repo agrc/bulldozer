@@ -107,12 +107,12 @@ def get_token(username, password, server):
     data = {'username': username, 'password': password, 'client': 'requestip', 'expiration': 60, 'f': 'json'}
 
     try:
-        response = requests.post(f'{server}admin/generateToken', data=data)
+        response = requests.post(f'{server}admin/generateToken', data=data, verify=False)
         response.raise_for_status()
 
         response_data = response.json()
-    except requests.exceptions.RequestException:
-        logging.warning('Unable to reach the server. Is it available?')
+    except requests.exceptions.RequestException as error:
+        logging.warning('Unable to reach the server. Is it available?', exc_info=error)
         return None
 
     status, message = return_false_for_status(response_data)
@@ -129,7 +129,7 @@ def get_log_messages(url, data):
     start time if there are more results
     '''
     try:
-        response = requests.post(url, data=data, headers=HEADERS)
+        response = requests.post(url, data=data, headers=HEADERS, verify=False)
         response.raise_for_status()
 
         data = response.json()
@@ -161,7 +161,7 @@ def clean_logs(url, token):
     data = {'token': token, 'f': 'json'}
 
     try:
-        response = requests.post(url, data=data, headers=HEADERS)
+        response = requests.post(url, data=data, headers=HEADERS, verify=False)
         response.raise_for_status()
 
         data = response.json()
