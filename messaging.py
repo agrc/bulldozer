@@ -6,10 +6,13 @@ email.py
 A module that contains a method for sending emails
 '''
 
+import logging
 from base64 import b64encode
 from pathlib import Path
+
 from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail, Attachment, Disposition, FileContent, FileName, FileType
+from sendgrid.helpers.mail import Attachment, Disposition, FileContent, FileName, FileType, Mail
+
 from servers import EMAIL_DATA
 
 
@@ -33,6 +36,7 @@ def send_email(subject, body, attachment=''):
 
     return _send_email_with_sendgrid(from_address, api_key, to_addresses, subject, body, [attachment])
 
+
 def _send_email_with_sendgrid(from_address, api_key, to_address, subject, body, attachments=None):
     '''
     email_server: dict
@@ -43,18 +47,17 @@ def _send_email_with_sendgrid(from_address, api_key, to_address, subject, body, 
     Send an email.
     '''
     if attachments is None:
-        attachments=[]
+        logging.debug('No attachments to send.')
 
-    message = Mail(
-        from_email=from_address,
-        to_emails=to_address,
-        subject=subject,
-        html_content=body)
+        attachments = []
+
+    message = Mail(from_email=from_address, to_emails=to_address, subject=subject, html_content=body)
 
     for location in attachments:
         path = Path(location)
 
         if not path.exists():
+            logging.warning('Attachment %s does not exist. Skipping.', path)
             continue
 
         content = b64encode(path.read_bytes()).decode()
@@ -68,6 +71,6 @@ def _send_email_with_sendgrid(from_address, api_key, to_address, subject, body, 
 
         return client.send(message)
     except Exception as error:
-        print(f'Error sending email with SendGrid: {error}')
+        logging.error('Error sending email with SendGrid', exc_info=error)
 
         return error
