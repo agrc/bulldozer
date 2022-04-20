@@ -17,20 +17,30 @@ Options:
 '''
 
 import csv
-import os
+import logging
 from collections import namedtuple
+from pathlib import Path
+from sys import stdout
 
 import requests
-import urllib3
-
 from docopt import docopt
-from messaging import send_email
-from servers import SERVER_TOKENS
+from supervisor.message_handlers import SendGridHandler
+from supervisor.models import Supervisor
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+from messaging import send_email
+from servers import EMAIL_DATA, SERVER_TOKENS
+
 HEADERS = {'Content-type': 'application/x-www-form-urlencoded', 'Accept': 'text/plain'}
 LOGS = {}
 Message = namedtuple('Message', ['severity', 'source', 'code', 'message', 'methodname'])
+logging.basicConfig(
+    stream=stdout,
+    format='%(levelname)-7s %(asctime)s %(module)10s:%(lineno)5s %(message)s',
+    datefmt='%m-%d %H:%M:%S',
+    level=logging.INFO
+)
+my_supervisor = Supervisor(logger=logging)
+my_supervisor.add_message_handler(SendGridHandler(EMAIL_DATA, 'bulldozer'))
 
 
 def ship(server_name_token, remove_logs, send_mail):
@@ -38,7 +48,7 @@ def ship(server_name_token, remove_logs, send_mail):
     '''
 
     if server_name_token not in SERVER_TOKENS:
-        print('Machine token not found in servers.py. Did you add it?')
+        logging.warning('Machine token not found in servers.py. Did you add it?')
 
         return
 
@@ -46,23 +56,23 @@ def ship(server_name_token, remove_logs, send_mail):
 
     token = get_token(username, password, url)
     if not token:
-        print('Could not generate a token with the username and password provided.')
+        logging.warning('Could not generate a token with the username and password provided.')
 
         return
 
     # Construct URL to query the logs
-    log_url = '{}admin/logs/query'.format(url)
-    clean_url = '{}admin/logs/clean'.format(url)
-    log_filename = os.path.join(os.path.abspath(os.path.dirname(__file__)), '{}.csv'.format(server_name_token))
+    log_url = f'{url}admin/logs/query'
+    clean_url = f'{url}admin/logs/clean'
+    log_filename = Path(__file__).parent.resolve() / f'{server_name_token}.csv'
 
     options = {'filter': '{}', 'token': token, 'pageSize': 10000, 'level': 'WARNING', 'f': 'json'}
 
-    print('fetching {} log messages'.format(options['pageSize']))
+    logging.debug('fetching %s log messages', options['pageSize'])
 
     logs, more = get_log_messages(log_url, options)
 
     if logs is None and more is None:
-        print('Could not get logs. Exiting')
+        logging.debug('Could not get logs. Exiting')
 
         return
 
@@ -70,7 +80,7 @@ def ship(server_name_token, remove_logs, send_mail):
         prune(logs)
 
     while logs and more:
-        print('fetching {} more log messages'.format(options['pageSize']))
+        logging.debug('fetching %s more log messages', options['pageSize'])
         options['startTime'] = more
         logs, more = get_log_messages(log_url, options)
         prune(logs)
@@ -78,13 +88,16 @@ def ship(server_name_token, remove_logs, send_mail):
     write_logs(log_filename, LOGS)
 
     if send_mail:
-        print('sending email')
-        send_email('{} ArcGIS Server logs'.format(server_name_token), '', log_filename)
+        logging.debug('sending email')
+        send_email(
+            f'{server_name_token} ArcGIS Server logs', 'Reading logs will not kill you but why take a chance?',
+            str(log_filename)
+        )
 
     if remove_logs:
         clean_logs(clean_url, token)
 
-    print('done')
+    logging.debug('done')
 
 
 def get_token(username, password, server):
@@ -94,39 +107,40 @@ def get_token(username, password, server):
     data = {'username': username, 'password': password, 'client': 'requestip', 'expiration': 60, 'f': 'json'}
 
     try:
-        response = requests.post('{}admin/generateToken'.format(server), data=data, verify=False)
+        response = requests.post(f'{server}admin/generateToken', data=data, verify=False)
         response.raise_for_status()
 
         response_data = response.json()
-    except requests.exceptions.RequestException:
-        print('Unable to reach the server. Is it available?')
+    except requests.exceptions.RequestException as error:
+        logging.warning('Unable to reach the server. Is it available?', exc_info=error)
         return None
 
     status, message = return_false_for_status(response_data)
 
     if not status:
-        print(message)
+        logging.warning(message)
         return None
 
     return response_data['token']
 
 
 def get_log_messages(url, data):
-    '''Makes a reqeust to the log service and returns the data along with the time to set for the next start time if there are more results
+    '''Makes a request to the log service and returns the data along with the time to set for the next
+    start time if there are more results
     '''
     try:
         response = requests.post(url, data=data, headers=HEADERS, verify=False)
         response.raise_for_status()
 
         data = response.json()
-    except requests.exceptions.RequestException:
-        print('Unable to reach the server. Is it available?')
+    except requests.exceptions.RequestException as error:
+        logging.warning('Unable to reach the server. Is it available?', exc_info=error)
 
         return None, None
 
     status, message = return_false_for_status(data)
     if not status:
-        print('Error returned by operation. ' + message)
+        logging.warning('Error returned by operation. %s', message)
 
         return None, None
 
@@ -151,16 +165,16 @@ def clean_logs(url, token):
         response.raise_for_status()
 
         data = response.json()
-    except requests.exceptions.RequestException:
-        print('Unable to reach the server. Is it available?')
+    except requests.exceptions.RequestException as error:
+        logging.warning('Unable to reach the server. Is it available?', exc_info=error)
 
         return
 
     status, message = return_false_for_status(data)
     if not status:
-        print('Error cleaning logs. ' + message)
+        logging.warning('Error cleaning logs. %s', message)
 
-    print('logs cleared')
+    logging.debug('logs cleared')
 
 
 def prune(data):
@@ -182,20 +196,27 @@ def prune(data):
 
 
 def write_logs(to_file, logs):
-    print('writing to ' + to_file)
+    '''
+    writes logs to csv file
+    to_file: Path
+    logs: an array of log items
+    '''
+    logging.debug('writing to %s', to_file)
 
     frequencies = sorted(logs.items(), key=lambda kvp: kvp[1], reverse=True)
-    with open(to_file, 'w', encoding='utf-8', newline='') as outfile:
+    with to_file.open('w', encoding='utf-8', newline='') as outfile:
         log_writer = csv.writer(outfile)
         log_writer.writerow(['severity', 'source', 'code', 'message', 'method name', 'frequency'])
 
         for message, frequency in frequencies:
-            log_writer.writerow([message.severity, message.source, message.code, message.message, message.methodname, frequency])
+            log_writer.writerow([
+                message.severity, message.source, message.code, message.message, message.methodname, frequency
+            ])
 
 
 def return_false_for_status(json_response):
-    '''json_reponse: string - a json payload from a server
-    looks for a status in the json reponse and makes sure it does not contain an error
+    '''json_response: string - a json payload from a server
+    looks for a status in the json response and makes sure it does not contain an error
     Returns a tuple with a boolean status and a message
     '''
     if 'status' in list(json_response.keys()) and json_response['status'] == 'error':
@@ -217,4 +238,5 @@ if __name__ == '__main__':
     ARGS = docopt(__doc__)
 
     if ARGS['ship'] and ARGS['<machine>']:
-        ship(ARGS['<machine>'], ARGS['--clean'], ARGS['--email'])
+        machine = ARGS['<machine>']
+        ship(machine, ARGS['--clean'], ARGS['--email'])

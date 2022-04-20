@@ -1,2 +1,4 @@
 requests
 docopt
+sendgrid
+agrc-supervisor

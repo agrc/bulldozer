@@ -6,11 +6,12 @@ email.py
 A module that contains a method for sending emails
 '''
 
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.utils import COMMASPACE, formatdate
-from os.path import basename, isfile
-from smtplib import SMTP
+import logging
+from base64 import b64encode
+from pathlib import Path
+
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Attachment, Disposition, FileContent, FileName, FileType, Mail
 
 from servers import EMAIL_DATA
 
@@ -25,35 +26,51 @@ def send_email(subject, body, attachment=''):
     Send an email.
     '''
     from_address = EMAIL_DATA['from']
-    smtp_server = EMAIL_DATA['server']
-    smtp_port = EMAIL_DATA['port']
+    api_key = EMAIL_DATA['api_key']
     to_addresses = EMAIL_DATA['to']
 
-    if None in [to_addresses, from_address, smtp_server, smtp_port]:
+    if None in [to_addresses, from_address, api_key]:
         print('Required variables for sending emails are missing. No emails sent.')
 
         return None
 
-    message = MIMEMultipart()
-    if isinstance(body, str):
-        message.attach(MIMEText(body, 'html'))
-    else:
-        message = body
+    return _send_email_with_sendgrid(from_address, api_key, to_addresses, subject, body, [attachment])
 
-    message['Subject'] = subject
-    message['From'] = from_address
-    message['To'] = COMMASPACE.join(to_addresses)
-    message['Date'] = formatdate(localtime=True)
 
-    if isfile(attachment):
-        with (open(attachment, 'r', encoding='utf-8')) as log_file:
-            log_file_attachment = MIMEText(log_file.read(), 'csv')
+def _send_email_with_sendgrid(from_address, api_key, to_address, subject, body, attachments=None):
+    '''
+    email_server: dict
+    to_address: string | string[]
+    subject: string
+    body: string | MIMEMultipart
+    attachments: string[] - paths to text files to attach to the email
+    Send an email.
+    '''
+    if attachments is None:
+        logging.debug('No attachments to send.')
 
-        log_file_attachment.add_header('Content-Disposition', 'attachment; filename="{}"'.format(basename(attachment)))
-        message.attach(log_file_attachment)
+        attachments = []
 
-    smtp = SMTP(smtp_server, smtp_port)
-    smtp.sendmail(from_address, to_addresses, message.as_string())
-    smtp.quit()
+    message = Mail(from_email=from_address, to_emails=to_address, subject=subject, html_content=body)
 
-    return smtp
+    for location in attachments:
+        path = Path(location)
+
+        if not path.exists():
+            logging.warning('Attachment %s does not exist. Skipping.', path)
+            continue
+
+        content = b64encode(path.read_bytes()).decode()
+
+        message.attachment = Attachment(
+            FileContent(content), FileName(path.name), FileType('text/csv'), Disposition('attachment')
+        )
+
+    try:
+        client = SendGridAPIClient(api_key)
+
+        return client.send(message)
+    except Exception as error:
+        logging.error('Error sending email with SendGrid', exc_info=error)
+
+        return error
