@@ -8,7 +8,7 @@ It will then clean the logs for the next run.
 
 1. Clone or download the repository
 1. Create a conda environment 
-   - `conda create --clone arcgispro-py3 --name bulldozer`
+   - `conda create --name bulldozer python=3.8`
 1. Activate the environment and install the dependencies
    - `activate bulldozer`
    - `python -m pip install -U pip`
