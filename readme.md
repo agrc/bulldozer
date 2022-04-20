@@ -16,5 +16,5 @@ It will then clean the logs for the next run.
 1. Replace `servers.sample.py` with `servers.py` and fill in server tokens
 1. Create a `.bat` file to schedule bulldozer
    - `call activate bulldozer`
-   - `python path\to\bulldozer.py ship app --clean --email
+   - `python path\to\bulldozer.py ship app --clean --email`
 1. Use the task scheduler to call the bat file on a schedule
